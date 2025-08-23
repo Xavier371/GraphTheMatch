@@ -56,14 +56,14 @@ class BipartiteMatchingGame {
         this.canvas.addEventListener('mouseup', (e) => this.handleEnd(e));
         
         // Touch events
-        this.canvas.addEventListener('touchstart', (e) => this.handleStart(e));
-        this.canvas.addEventListener('touchmove', (e) => this.handleMove(e));
-        this.canvas.addEventListener('touchend', (e) => this.handleEnd(e));
-        this.canvas.addEventListener('touchcancel', (e) => this.handleEnd(e));
+        this.canvas.addEventListener('touchstart', (e) => this.handleStart(e), { passive: false });
+        this.canvas.addEventListener('touchmove', (e) => this.handleMove(e), { passive: false });
+        this.canvas.addEventListener('touchend', (e) => this.handleEnd(e), { passive: false });
+        this.canvas.addEventListener('touchcancel', (e) => this.handleEnd(e), { passive: false });
         
         // Global click/touch handler
         document.addEventListener('click', (e) => this.handleGlobalClick(e));
-        document.addEventListener('touchend', (e) => this.handleGlobalClick(e));
+        document.addEventListener('touchend', (e) => this.handleGlobalClick(e), { passive: true });
         
         // Button handlers
         document.getElementById('toggleInstructions').addEventListener('click', () => this.toggleInstructions());
