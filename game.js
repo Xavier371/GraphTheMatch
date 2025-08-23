@@ -19,6 +19,10 @@ class BipartiteMatchingGame {
         this.lastTap = 0;
         this.lastEdgeClicked = null;
         
+        // Pointer tracking for unified drag on phones/desktops
+        this.activePointerId = null;
+        this.pointerActive = false;
+        
         // Add mobile detection
         this.isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
         
@@ -50,20 +54,15 @@ class BipartiteMatchingGame {
         // Event listeners
         window.addEventListener('resize', () => this.resizeCanvas());
         
-        // Mouse events
-        this.canvas.addEventListener('mousedown', (e) => this.handleStart(e));
-        this.canvas.addEventListener('mousemove', (e) => this.handleMove(e));
-        this.canvas.addEventListener('mouseup', (e) => this.handleEnd(e));
-        
-        // Touch events
-        this.canvas.addEventListener('touchstart', (e) => this.handleStart(e), { passive: false });
-        this.canvas.addEventListener('touchmove', (e) => this.handleMove(e), { passive: false });
-        this.canvas.addEventListener('touchend', (e) => this.handleEnd(e), { passive: false });
-        this.canvas.addEventListener('touchcancel', (e) => this.handleEnd(e), { passive: false });
+        // Unified pointer events
+        this.canvas.addEventListener('pointerdown', (e) => this.onPointerDown(e));
+        this.canvas.addEventListener('pointermove', (e) => this.onPointerMove(e));
+        this.canvas.addEventListener('pointerup', (e) => this.onPointerUp(e));
+        this.canvas.addEventListener('pointercancel', (e) => this.onPointerUp(e));
         
         // Global click/touch handler
         document.addEventListener('click', (e) => this.handleGlobalClick(e));
-        document.addEventListener('touchend', (e) => this.handleGlobalClick(e), { passive: true });
+        document.addEventListener('pointerup', (e) => this.handleGlobalClick(e));
         
         // Button handlers
         document.getElementById('toggleInstructions').addEventListener('click', () => this.toggleInstructions());
@@ -84,6 +83,31 @@ class BipartiteMatchingGame {
         this.canvas.width = container.offsetWidth;
         this.canvas.height = container.offsetHeight;
         this.draw();
+    }
+
+    // Pointer wrappers (use existing start/move/end logic)
+    onPointerDown(e) {
+        this.pointerActive = true;
+        this.activePointerId = e.pointerId;
+        if (this.canvas.setPointerCapture) {
+            try { this.canvas.setPointerCapture(e.pointerId); } catch (_) {}
+        }
+        this.handleStart(e);
+    }
+
+    onPointerMove(e) {
+        if (!this.pointerActive || e.pointerId !== this.activePointerId) return;
+        this.handleMove(e);
+    }
+
+    onPointerUp(e) {
+        if (e.pointerId !== this.activePointerId) return;
+        this.handleEnd(e);
+        if (this.canvas.releasePointerCapture) {
+            try { this.canvas.releasePointerCapture(e.pointerId); } catch (_) {}
+        }
+        this.pointerActive = false;
+        this.activePointerId = null;
     }
 
     checkNodeOverlap(x, y, existingNodes, customMinDistance = null) {
