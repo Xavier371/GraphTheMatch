@@ -167,11 +167,44 @@ class BipartiteMatchingGame {
         return { x, y };
     }
 
+    // Return an array of {x,y} evenly placed around a circle
+    computeRegularPolygonPositions(count, centerX, centerY, radius, rotationOffsetRadians = -Math.PI / 2) {
+        const positions = [];
+        if (count === 1) {
+            positions.push({ x: centerX, y: centerY });
+            return positions;
+        }
+        for (let i = 0; i < count; i++) {
+            const angle = rotationOffsetRadians + (i * 2 * Math.PI) / count;
+            positions.push({
+                x: centerX + radius * Math.cos(angle),
+                y: centerY + radius * Math.sin(angle)
+            });
+        }
+        return positions;
+    }
+
     generateWeight() {
-        // Skew distribution towards lower numbers
-        const rand = Math.random();
-        const skewedRand = rand * rand; // Square for more low numbers
-        return Number(skewedRand.toFixed(2));
+        // Piecewise-uniform mixture:
+        // 45%: U(0.20, 0.57)
+        // 45%: U(0.57, 0.90)
+        // 10%: Uniform over the union [0,0.20] ∪ [0.90,1.00]
+        const r = Math.random();
+        let value;
+        if (r < 0.45) {
+            value = 0.20 + Math.random() * (0.57 - 0.20);
+        } else if (r < 0.90) {
+            value = 0.57 + Math.random() * (0.90 - 0.57);
+        } else {
+            // Uniform across the union by sampling over its total length (0.20 + 0.10 = 0.30)
+            const u = Math.random() * 0.30; // maps to [0,0.30)
+            if (u <= 0.20) {
+                value = u; // in [0,0.20]
+            } else {
+                value = 0.90 + (u - 0.20); // in [0.90,1.00]
+            }
+        }
+        return Number(value.toFixed(2));
     }
 
        initializeGraph() {
@@ -180,41 +213,76 @@ class BipartiteMatchingGame {
         this.edges = [];
         this.highlightedEdges = new Set();
 
-        // Create nodes for set A with random positions
-        for (let i = 0; i < this.setASize; i++) {
-            const pos = this.getRandomPosition(allNodes);
-            const newNode = {
-                x: pos.x,
-                y: pos.y,
-                label: `A${i + 1}`,
-                set: 'A'
-            };
-            this.nodes.A.push(newNode);
-            allNodes.push(newNode);
-        }
+        // Board center
+        const w = this.canvas.width;
+        const h = this.canvas.height;
+        const centerX = w * 0.5;
+        const centerY = h * 0.5;
 
-        // Create nodes for set B with random positions
-        for (let i = 0; i < this.setBSize; i++) {
-            const pos = this.getRandomPosition(allNodes);
-            const newNode = {
-                x: pos.x,
-                y: pos.y,
-                label: `B${i + 1}`,
-                set: 'B'
-            };
-            this.nodes.B.push(newNode);
-            allNodes.push(newNode);
+        // One single ring for ALL nodes → forms the correct n-gon (e.g., 5 → pentagon)
+        const totalNodes = this.setASize + this.setBSize;
+        const radius = Math.min(w, h) * (this.isMobile ? 0.40 : 0.38);
+        const positions = this.computeRegularPolygonPositions(totalNodes, centerX, centerY, radius);
+
+        // Alternate assignment around the ring while respecting requested counts
+        let remainingA = this.setASize;
+        let remainingB = this.setBSize;
+        let nextSet = remainingA >= remainingB ? 'A' : 'B';
+        let aIndex = 0;
+        let bIndex = 0;
+
+        for (let i = 0; i < positions.length; i++) {
+            const p = positions[i];
+            const dx = p.x - centerX;
+            const dy = p.y - centerY;
+            if (((nextSet === 'A') && remainingA > 0) || remainingB === 0) {
+                const node = {
+                    x: p.x,
+                    y: p.y,
+                    label: `A${++aIndex}`,
+                    set: 'A',
+                    angle: Math.atan2(dy, dx),
+                    distance: Math.hypot(dx, dy)
+                };
+                this.nodes.A.push(node);
+                allNodes.push(node);
+                remainingA--;
+                nextSet = remainingB > 0 ? 'B' : 'A';
+            } else {
+                const node = {
+                    x: p.x,
+                    y: p.y,
+                    label: `B${++bIndex}`,
+                    set: 'B',
+                    angle: Math.atan2(dy, dx),
+                    distance: Math.hypot(dx, dy)
+                };
+                this.nodes.B.push(node);
+                allNodes.push(node);
+                remainingB--;
+                nextSet = remainingA > 0 ? 'A' : 'B';
+            }
         }
 
         // Create edges with new random weights
+        // Ensure displayed total weights are unique to two decimals across all edges
+        const usedTotals = new Set();
         for (let i = 0; i < this.setASize; i++) {
             for (let j = 0; j < this.setBSize; j++) {
-                const weight = this.generateWeight();
+                let weight, half, total;
+                let attempts = 0;
+                do {
+                    weight = this.generateWeight();
+                    half = Number((weight / 2).toFixed(2));
+                    total = Number((half + half).toFixed(2));
+                    attempts++;
+                } while (usedTotals.has(total) && attempts < 1000);
+                usedTotals.add(total);
                 this.edges.push({
                     from: { set: 'A', index: i },
                     to: { set: 'B', index: j },
-                    weight1: weight / 2,
-                    weight2: weight / 2,
+                    weight1: half,
+                    weight2: half,
                     highlighted: false
                 });
             }
@@ -478,15 +546,15 @@ class BipartiteMatchingGame {
         if (this.editingEdge !== null && input) {
             let value = parseFloat(input.value);
             
-            if (isNaN(value) || value < 0 || value > 1) {
+            if (isNaN(value) || value < 0) {
                 value = this.generateWeight();
             } else {
                 value = Number(value.toFixed(2));
             }
             
             const edge = this.edges[this.editingEdge];
-            edge.weight1 = value / 2;
-            edge.weight2 = value / 2;
+            edge.weight1 = Number((value / 2).toFixed(2));
+            edge.weight2 = Number((value / 2).toFixed(2));
             
             this.updateScore();
         }
@@ -659,47 +727,21 @@ class BipartiteMatchingGame {
        draw() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-        // Draw edges and weights first (underneath nodes)
-        this.edges.forEach((edge, index) => {
+        // 1) Draw edges (lines only)
+        this.edges.forEach((edge) => {
             const fromNode = this.nodes[edge.from.set][edge.from.index];
             const toNode = this.nodes[edge.to.set][edge.to.index];
-            
-            // Draw edge line
             this.ctx.beginPath();
             this.ctx.moveTo(fromNode.x, fromNode.y);
             this.ctx.lineTo(toNode.x, toNode.y);
             this.ctx.strokeStyle = edge.highlighted ? '#000' : '#666';
             this.ctx.lineWidth = edge.highlighted ? 3 : 1;
             this.ctx.stroke();
-
-            // Draw weight
-            const midX = (fromNode.x + toNode.x) / 2;
-            const midY = (fromNode.y + toNode.y) / 2;
-            
-            this.ctx.save();
-            this.ctx.translate(midX, midY);
-            
-            let angle = Math.atan2(toNode.y - fromNode.y, toNode.x - fromNode.x);
-            if (angle > Math.PI / 2 || angle < -Math.PI / 2) {
-                angle += Math.PI;
-            }
-            
-            this.ctx.rotate(angle);
-            this.ctx.textAlign = 'center';
-            this.ctx.textBaseline = 'middle';
-            this.ctx.fillStyle = edge.highlighted ? '#000' : '#666';
-            this.ctx.font = edge.highlighted ? 'bold 14px Arial' : '14px Arial';
-            
-            const totalWeight = (edge.weight1 + edge.weight2).toFixed(2);
-            this.ctx.fillText(totalWeight, 0, -10);
-            
-            this.ctx.restore();
         });
 
-        // Draw nodes last (on top of everything)
+        // 2) Draw nodes on top of edges
         for (const set of ['A', 'B']) {
-            this.nodes[set].forEach((node, index) => {
-                // Draw node circle
+            this.nodes[set].forEach((node) => {
                 this.ctx.beginPath();
                 this.ctx.arc(node.x, node.y, this.nodeRadius, 0, Math.PI * 2);
                 this.ctx.fillStyle = set === 'A' ? '#f44336' : '#2196F3';
@@ -708,7 +750,6 @@ class BipartiteMatchingGame {
                 this.ctx.lineWidth = 1;
                 this.ctx.stroke();
 
-                // Draw node label
                 this.ctx.fillStyle = 'white';
                 this.ctx.textAlign = 'center';
                 this.ctx.textBaseline = 'middle';
@@ -716,6 +757,46 @@ class BipartiteMatchingGame {
                 this.ctx.fillText(node.label, node.x, node.y);
             });
         }
+
+        // 3) Draw weights last so they are visible above nodes
+        this.edges.forEach((edge) => {
+            const fromNode = this.nodes[edge.from.set][edge.from.index];
+            const toNode = this.nodes[edge.to.set][edge.to.index];
+            const midX = (fromNode.x + toNode.x) / 2;
+            const midY = (fromNode.y + toNode.y) / 2;
+
+            this.ctx.save();
+            this.ctx.translate(midX, midY);
+            let angle = Math.atan2(toNode.y - fromNode.y, toNode.x - fromNode.x);
+            if (angle > Math.PI / 2 || angle < -Math.PI / 2) {
+                angle += Math.PI;
+            }
+            this.ctx.rotate(angle);
+
+            const totalWeight = (edge.weight1 + edge.weight2).toFixed(2);
+            const font = edge.highlighted ? 'bold 14px Arial' : '14px Arial';
+            this.ctx.font = font;
+            this.ctx.textAlign = 'center';
+            this.ctx.textBaseline = 'middle';
+
+            // Background box for readability
+            const paddingX = 6;
+            const paddingY = 3;
+            const labelOffset = 14; // push off the edge line
+            const metrics = this.ctx.measureText(totalWeight);
+            const textWidth = metrics.width;
+            const textHeight = 14; // approximate
+
+            // Draw background rectangle
+            this.ctx.fillStyle = 'rgba(255,255,255,0.95)';
+            this.ctx.fillRect(-textWidth / 2 - paddingX, -labelOffset - textHeight / 2 - paddingY, textWidth + paddingX * 2, textHeight + paddingY * 2);
+
+            // Draw text
+            this.ctx.fillStyle = edge.highlighted ? '#000' : '#666';
+            this.ctx.fillText(totalWeight, 0, -labelOffset);
+
+            this.ctx.restore();
+        });
     }
 }
 
@@ -730,3 +811,4 @@ window.addEventListener('load', () => {
 
    
    
+
