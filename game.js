@@ -2,7 +2,7 @@ class BipartiteMatchingGame {
     constructor() {
         this.canvas = document.getElementById('gameCanvas');
         this.ctx = this.canvas.getContext('2d');
-        
+
         // Game state
         this.setASize = 2;
         this.setBSize = 3;
@@ -10,7 +10,7 @@ class BipartiteMatchingGame {
         this.nodes = { A: [], B: [] };
         this.edges = [];
         this.highlightedEdges = new Set();
-        
+
         // Interaction states
         this.isDragging = false;
         this.draggedNode = null;
@@ -18,23 +18,23 @@ class BipartiteMatchingGame {
         this.editingEdge = null;
         this.lastTap = 0;
         this.lastEdgeClicked = null;
-        
+
         // Pointer tracking for unified drag on phones/desktops
         this.activePointerId = null;
         this.pointerActive = false;
-        
+
         // Add mobile detection
         this.isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-        
+
         // Adjust node radius for mobile
         if (this.isMobile) {
             this.nodeRadius = 15; // Smaller nodes on mobile
         }
-        
+
         // Initialize game
         this.resizeCanvas();
         this.initializeGraph();
-        
+
         // Create max score display
         const scoreDisplay = document.querySelector('.score-display');
         if (!document.getElementById('maxScore')) {
@@ -42,7 +42,7 @@ class BipartiteMatchingGame {
             maxScoreDiv.innerHTML = `Max Score: <span id="maxScore">?</span>`;
             scoreDisplay.appendChild(maxScoreDiv);
         }
-        
+
         // Create win message element
         if (!document.getElementById('winMessage')) {
             const winMessageDiv = document.createElement('div');
@@ -50,20 +50,20 @@ class BipartiteMatchingGame {
             winMessageDiv.style.display = 'none';
             scoreDisplay.appendChild(winMessageDiv);
         }
-        
+
         // Event listeners
         window.addEventListener('resize', () => this.resizeCanvas());
-        
+
         // Unified pointer events
         this.canvas.addEventListener('pointerdown', (e) => this.onPointerDown(e));
         this.canvas.addEventListener('pointermove', (e) => this.onPointerMove(e));
         this.canvas.addEventListener('pointerup', (e) => this.onPointerUp(e));
         this.canvas.addEventListener('pointercancel', (e) => this.onPointerUp(e));
-        
+
         // Global click/touch handler
         document.addEventListener('click', (e) => this.handleGlobalClick(e));
         document.addEventListener('pointerup', (e) => this.handleGlobalClick(e));
-        
+
         // Button handlers
         document.getElementById('toggleInstructions').addEventListener('click', () => this.toggleInstructions());
         document.getElementById('resetGraph').addEventListener('click', () => this.resetGraph());
@@ -73,7 +73,7 @@ class BipartiteMatchingGame {
             document.getElementById('gameCanvas').classList.remove('hidden');
             document.getElementById('toggleInstructions').textContent = 'Instructions';
         });
-        
+
         // Size input handlers
         document.getElementById('setASize').addEventListener('change', (e) => this.handleSizeChange('A', e));
         document.getElementById('setBSize').addEventListener('change', (e) => this.handleSizeChange('B', e));
@@ -131,22 +131,22 @@ class BipartiteMatchingGame {
     }
 
     checkWeightOverlap(x, y, existingNodes) {
-        const weightRadius = this.isMobile ? 
+        const weightRadius = this.isMobile ?
             this.nodeRadius * 3 : // Larger spacing for weights on mobile
             this.nodeRadius * 2.5; // Desktop spacing
 
         for (const edge of this.edges) {
             const fromNode = this.nodes[edge.from.set][edge.from.index];
             const toNode = this.nodes[edge.to.set][edge.to.index];
-            
+
             if (fromNode && toNode) {
                 const midX = (fromNode.x + toNode.x) / 2;
                 const midY = (fromNode.y + toNode.y) / 2;
-                
+
                 const dx = x - midX;
                 const dy = y - midY;
                 const distance = Math.sqrt(dx * dx + dy * dy);
-                
+
                 if (distance < weightRadius) {
                     return true;
                 }
@@ -158,17 +158,17 @@ class BipartiteMatchingGame {
     getRandomPosition(allNodes) {
         const padding = this.nodeRadius * (this.isMobile ? 6 : 3); // Increased mobile padding
         const centerBuffer = this.isMobile ? 0.05 : 0.2; // Only 5% buffer on mobile to use more screen
-        
+
         const minX = this.canvas.width * centerBuffer;
         const maxX = this.canvas.width * (1 - centerBuffer);
         const minY = this.canvas.height * centerBuffer;
         const maxY = this.canvas.height * (1 - centerBuffer);
-        
+
         // Increased minimum distance for mobile
         const minDistance = this.isMobile ?
             Math.min(this.canvas.width, this.canvas.height) * 0.3 : // 30% for mobile
             Math.min(this.canvas.width, this.canvas.height) * 0.15;  // 15% for desktop
-        
+
         let x, y;
         let attempts = 0;
         const maxAttempts = 150;
@@ -177,11 +177,11 @@ class BipartiteMatchingGame {
             x = minX + Math.random() * (maxX - minX);
             y = minY + Math.random() * (maxY - minY);
             attempts++;
-            
+
             if (attempts > maxAttempts / 2) {
                 const reductionFactor = 1 - (attempts - maxAttempts / 2) / (maxAttempts / 2);
                 const currentMinDistance = minDistance * Math.max(0.6, reductionFactor);
-                
+
                 if (!this.checkNodeOverlap(x, y, allNodes, currentMinDistance)) {
                     break;
                 }
@@ -320,7 +320,7 @@ class BipartiteMatchingGame {
     getEventPosition(e) {
         const rect = this.canvas.getBoundingClientRect();
         let clientX, clientY;
-        
+
         if (e.touches && e.touches.length > 0) {
             clientX = e.touches[0].clientX;
             clientY = e.touches[0].clientY;
@@ -328,7 +328,7 @@ class BipartiteMatchingGame {
             clientX = e.clientX;
             clientY = e.clientY;
         }
-        
+
         return {
             x: (clientX - rect.left) * (this.canvas.width / rect.width),
             y: (clientY - rect.top) * (this.canvas.height / rect.height)
@@ -337,28 +337,28 @@ class BipartiteMatchingGame {
 
     findClickedEdge(pos) {
         const clickRadius = this.isMobile ? 30 : 20; // Larger click area for mobile
-        
+
         for (let i = 0; i < this.edges.length; i++) {
             const edge = this.edges[i];
             const fromNode = this.nodes[edge.from.set][edge.from.index];
             const toNode = this.nodes[edge.to.set][edge.to.index];
-            
+
             // Calculate distance from click to line segment
             const A = pos.x - fromNode.x;
             const B = pos.y - fromNode.y;
             const C = toNode.x - fromNode.x;
             const D = toNode.y - fromNode.y;
-            
+
             const dot = A * C + B * D;
             const len_sq = C * C + D * D;
             let param = -1;
-            
+
             if (len_sq !== 0) {
                 param = dot / len_sq;
             }
-            
+
             let xx, yy;
-            
+
             if (param < 0) {
                 xx = fromNode.x;
                 yy = fromNode.y;
@@ -369,11 +369,11 @@ class BipartiteMatchingGame {
                 xx = fromNode.x + param * C;
                 yy = fromNode.y + param * D;
             }
-            
+
             const dx = pos.x - xx;
             const dy = pos.y - yy;
             const distance = Math.sqrt(dx * dx + dy * dy);
-            
+
             if (distance < clickRadius) {
                 return i;
             }
@@ -390,7 +390,7 @@ class BipartiteMatchingGame {
                 return node;
             }
         }
-        
+
         // Then check set B nodes
         for (let i = 0; i < this.nodes.B.length; i++) {
             const node = this.nodes.B[i];
@@ -400,7 +400,7 @@ class BipartiteMatchingGame {
                 return node;
             }
         }
-        
+
         return null;
     }
 
@@ -428,25 +428,25 @@ class BipartiteMatchingGame {
             const edge = this.edges[i];
             const fromNode = this.nodes[edge.from.set][edge.from.index];
             const toNode = this.nodes[edge.to.set][edge.to.index];
-            
+
             // Check both the line and the weight position
             const midX = (fromNode.x + toNode.x) / 2;
             const midY = (fromNode.y + toNode.y) / 2;
-            
+
             // Check if clicked near the edge line
             const A = pos.x - fromNode.x;
             const B = pos.y - fromNode.y;
             const C = toNode.x - fromNode.x;
             const D = toNode.y - fromNode.y;
-            
+
             const dot = A * C + B * D;
             const len_sq = C * C + D * D;
             let param = -1;
-            
+
             if (len_sq !== 0) {
                 param = dot / len_sq;
             }
-            
+
             let xx, yy;
             if (param < 0) {
                 xx = fromNode.x;
@@ -458,7 +458,7 @@ class BipartiteMatchingGame {
                 xx = fromNode.x + param * C;
                 yy = fromNode.y + param * D;
             }
-            
+
             const distance = Math.hypot(pos.x - xx, pos.y - yy);
             if (distance < clickRadius) {
                 return i;
@@ -470,7 +470,7 @@ class BipartiteMatchingGame {
     handleStart(e) {
         e.preventDefault();
         const pos = this.getEventPosition(e);
-        
+
         // Always check for node drag first
         const clickedNode = this.findClickedNode(pos);
         if (clickedNode) {
@@ -479,7 +479,7 @@ class BipartiteMatchingGame {
             this.lastDragPos = pos;
             return;
         }
-        
+
         // Then check for edge click
         const edgeIndex = this.findClickedEdge(pos);
         if (edgeIndex !== -1) {
@@ -493,17 +493,17 @@ class BipartiteMatchingGame {
     handleMove(e) {
         if (!this.isDragging || !this.draggedNode) return;
         e.preventDefault();
-        
+
         const pos = this.getEventPosition(e);
-        
+
         // Calculate new position with boundary constraints
         const newX = Math.min(Math.max(pos.x, this.nodeRadius), this.canvas.width - this.nodeRadius);
         const newY = Math.min(Math.max(pos.y, this.nodeRadius), this.canvas.height - this.nodeRadius);
-        
+
         // Update node position with constrained values
         this.draggedNode.x = newX;
         this.draggedNode.y = newY;
-        
+
         this.draw();
     }
 
@@ -527,19 +527,19 @@ class BipartiteMatchingGame {
 
         this.isEditingWeight = true;
         this.editingEdge = edgeIndex;
-        
+
         const input = document.createElement('input');
         input.type = 'text';
         input.classList.add('weight-input');
-        
+
         const edge = this.edges[edgeIndex];
         input.value = (edge.weight1 + edge.weight2).toFixed(2);
-        
+
         const rect = this.canvas.getBoundingClientRect();
         input.style.position = 'absolute';
         input.style.left = `${pos.x + rect.left - 30}px`;
         input.style.top = `${pos.y + rect.top - 10}px`;
-        
+
         input.addEventListener('blur', () => {
             if (this.isEditingWeight) {
                 this.handleWeightInputComplete(input);
@@ -569,20 +569,20 @@ class BipartiteMatchingGame {
     handleWeightInputComplete(input) {
         if (this.editingEdge !== null && input) {
             let value = parseFloat(input.value);
-            
+
             if (isNaN(value) || value < 0) {
                 value = this.generateWeight();
             } else {
                 value = Number(value.toFixed(2));
             }
-            
+
             const edge = this.edges[this.editingEdge];
             edge.weight1 = Number((value / 2).toFixed(2));
             edge.weight2 = Number((value / 2).toFixed(2));
-            
+
             this.updateScore();
         }
-        
+
         if (input && input.parentNode) {
             input.parentNode.removeChild(input);
         }
@@ -673,7 +673,7 @@ class BipartiteMatchingGame {
         const generateMatchings = (current, aIndex) => {
             if (aIndex === this.setASize) {
                 if (isValidMatching(current)) {
-                    const score = current.reduce((sum, [a, b]) => 
+                    const score = current.reduce((sum, [a, b]) =>
                         sum + getEdgeWeight(a, b), 0);
                     maxScore = Math.max(maxScore, score);
                 }
@@ -699,9 +699,9 @@ class BipartiteMatchingGame {
                 const edge = this.edges[edgeIndex];
                 return sum + (edge.weight1 + edge.weight2);
             }, 0);
-        
+
         document.getElementById('maxScore').textContent = maxScore.toFixed(2);
-        
+
         const winMessage = document.getElementById('winMessage');
         if (Math.abs(currentScore - maxScore) < 0.01) {
             winMessage.textContent = "You win! This is the best matching available.";
@@ -715,7 +715,7 @@ class BipartiteMatchingGame {
         this.initializeGraph();
         document.getElementById('currentScore').textContent = '0.00';
         document.getElementById('maxScore').textContent = '?';
-        document.getElementById('winMessage').style.display = 'none';
+        document.getElementById('winMessage').style.visibility = 'hidden';
     }
 
     handleSizeChange(set, e) {
@@ -728,7 +728,7 @@ class BipartiteMatchingGame {
             }
             this.initializeGraph();
             document.getElementById('maxScore').textContent = '?';
-            document.getElementById('winMessage').style.display = 'none';
+            document.getElementById('winMessage').style.visibility = 'hidden';
         }
     }
 
@@ -828,11 +828,3 @@ class BipartiteMatchingGame {
 window.addEventListener('load', () => {
     new BipartiteMatchingGame();
 });
-
-   
-   
-   
-
-   
-   
-
