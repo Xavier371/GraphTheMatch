@@ -71,7 +71,7 @@ input[type="number"] {
 }
 
 .score-display {
-    margin-bottom: 20px;
+    margin-bottom: 10px;
     font-size: 16px;
     font-weight: bold;
     display: flex;
@@ -160,19 +160,13 @@ canvas {
 }
 
 #winMessage {
-    position: fixed;
-    bottom: 24px;
-    left: 50%;
-    transform: translateX(-50%);
     color: #4CAF50;
     font-weight: bold;
     text-align: center;
-    padding: 10px 20px;
-    background: white;
-    border-radius: 4px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-    z-index: 500;
+    padding: 4px 10px;
+    font-size: 13px;
     white-space: nowrap;
+    overflow: hidden;
 }
 
 .weight-input {
@@ -224,14 +218,14 @@ canvas {
 
     .score-display {
         flex-direction: row;
-        margin: 15px 0;
+        margin: 8px 0;
         gap: 10px;
         font-size: 14px;
     }
 
     .score-item {
         flex: 1;
-        padding: 8px;
+        padding: 6px 8px;
     }
 
     #canvasContainer {

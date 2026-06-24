@@ -47,7 +47,8 @@ class BipartiteMatchingGame {
         if (!document.getElementById('winMessage')) {
             const winMessageDiv = document.createElement('div');
             winMessageDiv.id = 'winMessage';
-            winMessageDiv.style.display = 'none';
+            winMessageDiv.innerHTML = '&nbsp;';
+            winMessageDiv.style.visibility = 'hidden';
             scoreDisplay.appendChild(winMessageDiv);
         }
 
@@ -705,9 +706,9 @@ class BipartiteMatchingGame {
         const winMessage = document.getElementById('winMessage');
         if (Math.abs(currentScore - maxScore) < 0.01) {
             winMessage.textContent = "You win! This is the best matching available.";
-            winMessage.style.display = 'block';
+            winMessage.style.visibility = 'visible';
         } else {
-            winMessage.style.display = 'none';
+            winMessage.style.visibility = 'hidden';
         }
     }
 
