@@ -160,11 +160,19 @@ canvas {
 }
 
 #winMessage {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
     color: #4CAF50;
-    margin-top: 5px;
     font-weight: bold;
     text-align: center;
-    padding: 10px;
+    padding: 10px 20px;
+    background: white;
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    z-index: 500;
+    white-space: nowrap;
 }
 
 .weight-input {
@@ -262,5 +270,3 @@ canvas {
         margin-top: 30px;
     }
 }
-
-
